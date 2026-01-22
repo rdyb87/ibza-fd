@@ -1,0 +1,4 @@
+[
+  { "name": "Member 1", "payments": [false,false,false,false,false,false,false,false,false,false,false,false] },
+  { "name": "Member 2", "payments": [false,false,false,false,false,false,false,false,false,false,false,false] }
+]
