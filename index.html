@@ -28,6 +28,7 @@
     <div class="neo p-6 w-80 text-center bg-white">
       <h2 class="font-bold mb-3">🔒 Admin Login</h2>
       <input type="password" x-model="passwordInput" placeholder="Enter Admin Password" class="border-2 border-black p-2 w-full mb-3">
+      <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token (optional)" class="border-2 border-black p-2 w-full mb-3">
       <button @click="login()" class="neo-btn px-4 py-2 w-full">Login</button>
       <p class="text-red-600 mt-2 text-sm" x-text="loginError"></p>
       <button @click="showLogin=false" class="mt-3 text-sm underline">Cancel</button>
@@ -123,13 +124,14 @@ function app() {
     githubUser: 'rdyb87',
     githubRepo: 'ibza-fd',
     githubFile: 'data.json',
-    githubToken: '',
 
     // ===== STATE =====
     isAdmin: false,
     showLogin: false,
     passwordInput: '',
+    tokenInput: '',
     loginError: '',
+    githubToken: '',
 
     months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     members: [],
@@ -138,8 +140,10 @@ function app() {
     // ===== INIT =====
     init() {
       const session = sessionStorage.getItem('ibza_admin');
+      const tokenSession = sessionStorage.getItem('ibza_token');
       if(session === 'true') this.isAdmin = true;
-      this.loadFromCloud();
+      if(tokenSession) this.githubToken = tokenSession;
+      this.loadFromCloud(); // auto-load on page open
     },
 
     // ===== LOGIN =====
@@ -147,6 +151,10 @@ function app() {
       if(this.passwordInput === this.adminPassword){
         this.isAdmin = true;
         sessionStorage.setItem('ibza_admin','true');
+        if(this.tokenInput){
+          this.githubToken = this.tokenInput;
+          sessionStorage.setItem('ibza_token', this.tokenInput);
+        }
         this.showLogin = false;
         this.loginError='';
       } else {
@@ -156,6 +164,8 @@ function app() {
     logout(){
       this.isAdmin = false;
       sessionStorage.removeItem('ibza_admin');
+      sessionStorage.removeItem('ibza_token');
+      this.githubToken = '';
     },
 
     // ===== MEMBER MGMT =====
@@ -196,10 +206,7 @@ function app() {
         if(res.ok){
           this.members = await res.json();
         } else {
-          this.members = [
-            { name: 'Member 1', payments: Array(12).fill(false) },
-            { name: 'Member 2', payments: Array(12).fill(false) }
-          ];
+          this.members = [];
         }
       } catch(e){
         alert('Failed to load from cloud');
@@ -209,9 +216,12 @@ function app() {
     // ===== SAVE TO GITHUB =====
     async saveToCloud(){
       if(!this.isAdmin) return;
+      if(!this.githubToken){
+        alert('Please enter GitHub token in Admin Login');
+        return;
+      }
       const apiUrl = `https://api.github.com/repos/${this.githubUser}/${this.githubRepo}/contents/${this.githubFile}`;
 
-      // get existing sha
       let sha = null;
       const getRes = await fetch(apiUrl);
       if(getRes.ok){
