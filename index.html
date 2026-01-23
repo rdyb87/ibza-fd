@@ -386,8 +386,13 @@
         updateExtra(index, value) {
           if (!this.isAdmin) return;
           const numValue = parseFloat(value) || 0;
-          this.members[index].extra = numValue;
-          this.saveToCloud();
+          const currentValue = parseFloat(this.members[index].extra) || 0;
+          
+          // Only save if value actually changed
+          if (numValue !== currentValue) {
+            this.members[index].extra = numValue;
+            this.saveToCloud();
+          }
         },
 
         getMemberTotal(member) {
