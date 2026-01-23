@@ -80,6 +80,18 @@
     .editable-field:hover {
       background: #fef3c7;
     }
+
+    .extra-input {
+      width: 80px;
+      padding: 4px;
+      border: 2px solid black;
+      text-align: center;
+    }
+
+    .extra-input:disabled {
+      background: #f3f4f6;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 
@@ -212,6 +224,7 @@
               <template x-for="month in months">
                 <th class="border-2 border-black p-2" x-text="month"></th>
               </template>
+              <th class="border-2 border-black p-2 bg-yellow-200">Extra (RM)</th>
               <th class="border-2 border-black p-2">Total</th>
               <th class="border-2 border-black p-2">Action</th>
             </tr>
@@ -225,7 +238,20 @@
                     <input type="checkbox" x-model="member.payments[mIndex]" @change="saveLocal()" class="w-5 h-5">
                   </td>
                 </template>
-                <td class="border-2 border-black p-2 text-center" x-text="member.payments.filter(p=>p).length"></td>
+                <td class="border-2 border-black p-2 text-center bg-yellow-50">
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    min="0"
+                    :value="member.extra || 0"
+                    @keypress.enter="updateExtra(index, $event.target.value)"
+                    @blur="updateExtra(index, $event.target.value)"
+                    :disabled="!isAdmin"
+                    class="extra-input"
+                    placeholder="0.00"
+                  />
+                </td>
+                <td class="border-2 border-black p-2 text-center font-bold" x-text="getMemberTotal(member)"></td>
                 <td class="border-2 border-black p-2 text-center">
                   <button @click="removeMember(index)" class="neo-btn px-2 py-1 bg-red-400">Remove</button>
                 </td>
@@ -333,7 +359,11 @@
         addMember() {
           if (!this.isAdmin) return;
           if (!this.newMember.trim()) return;
-          this.members.push({ name: this.newMember, payments: Array(12).fill(false) });
+          this.members.push({ 
+            name: this.newMember, 
+            payments: Array(12).fill(false),
+            extra: 0
+          });
           this.newMember = '';
           this.saveLocal();
         },
@@ -348,11 +378,28 @@
 
         saveLocal() { },
 
+        // ===== EXTRA DONATION =====
+        updateExtra(index, value) {
+          if (!this.isAdmin) return;
+          const numValue = parseFloat(value) || 0;
+          this.members[index].extra = numValue;
+          this.saveToCloud();
+        },
+
+        getMemberTotal(member) {
+          const monthlyTotal = member.payments.filter(p => p).length * 36;
+          const extraAmount = parseFloat(member.extra) || 0;
+          return 'RM' + (monthlyTotal + extraAmount).toFixed(2);
+        },
+
         // ===== SUMMARY =====
         totalPaid() {
           let total = 0;
-          this.members.forEach(m => total += m.payments.filter(p => p).length);
-          return 'RM' + (total * 36);
+          this.members.forEach(m => {
+            total += m.payments.filter(p => p).length * 36;
+            total += parseFloat(m.extra) || 0;
+          });
+          return 'RM' + total.toFixed(2);
         },
 
         currentMonthPaid() {
@@ -397,6 +444,10 @@
                 
                 // Load members and event details
                 this.members = data.members || [];
+                // Ensure all members have extra field
+                this.members.forEach(m => {
+                  if (m.extra === undefined) m.extra = 0;
+                });
                 this.eventDate = data.eventDate || '';
                 this.eventVenue = data.eventVenue || '';
                 
@@ -419,6 +470,10 @@
               if (res.ok) {
                 const data = await res.json();
                 this.members = data.members || [];
+                // Ensure all members have extra field
+                this.members.forEach(m => {
+                  if (m.extra === undefined) m.extra = 0;
+                });
                 this.eventDate = data.eventDate || '';
                 this.eventVenue = data.eventVenue || '';
                 
