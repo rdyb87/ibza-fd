@@ -30,6 +30,43 @@
       opacity: 0.5;
       pointer-events: none;
     }
+
+    .progress-bar {
+      height: 24px;
+      background: #e5e7eb;
+      border: 2px solid black;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+      font-size: 0.75rem;
+      color: black;
+      text-shadow: 0 0 3px white;
+    }
+
+    .editable-field {
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: background 0.2s;
+    }
+
+    .editable-field:hover {
+      background: #fef3c7;
+    }
   </style>
 </head>
 
@@ -43,7 +80,7 @@
     </div>
 
     <!-- LOGIN MODAL -->
-    <div x-show="showLogin" class="fixed inset-0 bg-black/50 flex items-center justify-center">
+    <div x-show="showLogin" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="neo p-6 w-80 text-center bg-white">
         <h2 class="font-bold mb-3">🔒 Admin Login</h2>
         <input type="password" x-model="passwordInput" placeholder="Enter Admin Password"
@@ -56,9 +93,31 @@
       </div>
     </div>
 
+    <!-- EDIT EVENT MODAL -->
+    <div x-show="showEventEdit" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="neo p-6 w-96 bg-white">
+        <h2 class="font-bold mb-4 text-center">✏️ Edit Event Details</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-semibold mb-1">📅 Expected Date:</label>
+            <input type="text" x-model="tempEventDate" placeholder="e.g., December 25, 2026"
+              class="border-2 border-black p-2 w-full">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">📍 Venue:</label>
+            <input type="text" x-model="tempEventVenue" placeholder="e.g., Port Dickson Beach Resort, Chalet 5"
+              class="border-2 border-black p-2 w-full">
+          </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button @click="saveEventDetails()" class="neo-btn px-4 py-2 flex-1">Save</button>
+          <button @click="showEventEdit=false" class="neo-btn px-4 py-2 flex-1 bg-gray-300">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- PUBLIC / ADMIN BAR -->
     <div class="neo p-3 mb-4 text-center text-sm">
-      
       <template x-if="!isAdmin">
         <button @click="showLogin=true" class="neo-btn px-3 py-1 ml-2">Admin Login</button>
       </template>
@@ -67,8 +126,27 @@
       </template>
     </div>
 
-    <!-- SUMMARY -->
-    <div class="grid sm:grid-cols-3 gap-4 mb-4">
+    <!-- EVENT DETAILS & SUMMARY -->
+    <div class="grid sm:grid-cols-4 gap-4 mb-4">
+      <!-- Event Details -->
+      <div class="neo p-4 relative">
+        <template x-if="isAdmin">
+          <button @click="openEventEdit()" class="absolute top-2 right-2 text-xs neo-btn px-2 py-1">✏️ Edit</button>
+        </template>
+        <h2 class="font-bold mb-2">📋 Event Details</h2>
+        <div class="text-sm space-y-1">
+          <p>
+            <span class="font-semibold">📅 Expected Date:</span>
+            <span x-text="eventDate || 'Not set yet'" :class="{'text-gray-400 italic': !eventDate}"></span>
+          </p>
+          <p>
+            <span class="font-semibold">📍 Venue:</span>
+            <span x-text="eventVenue || 'Not set yet'" :class="{'text-gray-400 italic': !eventVenue}"></span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
       <div class="neo p-4 text-center">
         <h2 class="font-bold">👥 Members</h2>
         <p class="text-xl" x-text="members.length"></p>
@@ -80,6 +158,15 @@
       <div class="neo p-4 text-center">
         <h2 class="font-bold">📅 Current Month Paid</h2>
         <p class="text-xl" x-text="currentMonthPaid()"></p>
+      </div>
+    </div>
+
+    <!-- TARGET GOAL -->
+    <div class="neo p-4 mb-4">
+      <h2 class="font-bold mb-2">🎯 Target Goal</h2>
+      <div class="progress-bar">
+        <div class="progress-fill" :style="`width: ${getProgressPercentage()}%`"></div>
+        <div class="progress-text" x-text="`${totalPaid()} collected / ${getTargetAmount()} Target (${getProgressPercentage()}%)`"></div>
       </div>
     </div>
 
@@ -134,7 +221,7 @@
       </div>
     </div>
 
-    <div class="text-center mt-6 text-sm">Develop by Maream Imani</div>
+    <div class="text-center mt-6 text-sm">Developed by Adib Ibrahim</div>
   </div>
 
   <script>
@@ -149,10 +236,17 @@
         // ===== STATE =====
         isAdmin: false,
         showLogin: false,
+        showEventEdit: false,
         passwordInput: '',
         tokenInput: '',
         loginError: '',
         githubToken: '',
+
+        // Event details
+        eventDate: '',
+        eventVenue: '',
+        tempEventDate: '',
+        tempEventVenue: '',
 
         months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         members: [],
@@ -205,6 +299,21 @@
           sessionStorage.removeItem('ibza_admin');
         },
 
+        // ===== EVENT DETAILS =====
+        openEventEdit() {
+          if (!this.isAdmin) return;
+          this.tempEventDate = this.eventDate;
+          this.tempEventVenue = this.eventVenue;
+          this.showEventEdit = true;
+        },
+
+        saveEventDetails() {
+          this.eventDate = this.tempEventDate;
+          this.eventVenue = this.tempEventVenue;
+          this.showEventEdit = false;
+          this.saveLocal();
+        },
+
         // ===== MEMBER MGMT =====
         addMember() {
           if (!this.isAdmin) return;
@@ -238,6 +347,19 @@
           return 'RM' + (total * 36);
         },
 
+        // ===== TARGET GOAL FUNCTIONS =====
+        getTargetAmount() {
+          // Target is total members × 12 months × RM36
+          return 'RM' + (this.members.length * 12 * 36);
+        },
+
+        getProgressPercentage() {
+          const totalPayments = this.members.reduce((sum, m) => sum + m.payments.filter(p => p).length, 0);
+          const targetPayments = this.members.length * 12;
+          if (targetPayments === 0) return 0;
+          return Math.min(Math.round((totalPayments / targetPayments) * 100), 100);
+        },
+
         // ===== LOAD FROM GITHUB =====
         async loadFromCloud() {
           // Use GitHub API if we have a token (gets latest data, no cache)
@@ -254,9 +376,16 @@
                 const fileData = await res.json();
                 // Decode base64 content
                 const content = atob(fileData.content);
-                this.members = JSON.parse(content);
+                const data = JSON.parse(content);
+                
+                // Load members and event details
+                this.members = data.members || [];
+                this.eventDate = data.eventDate || '';
+                this.eventVenue = data.eventVenue || '';
               } else {
                 this.members = [];
+                this.eventDate = '';
+                this.eventVenue = '';
               }
             } catch (e) {
               console.error('Failed to load from cloud:', e);
@@ -268,9 +397,14 @@
             try {
               const res = await fetch(rawUrl);
               if (res.ok) {
-                this.members = await res.json();
+                const data = await res.json();
+                this.members = data.members || [];
+                this.eventDate = data.eventDate || '';
+                this.eventVenue = data.eventVenue || '';
               } else {
                 this.members = [];
+                this.eventDate = '';
+                this.eventVenue = '';
               }
             } catch (e) {
               console.error('Failed to load from cloud:', e);
@@ -305,7 +439,14 @@
             console.log('File does not exist yet, will create it');
           }
 
-          const content = btoa(JSON.stringify(this.members, null, 2));
+          // Save members and event details together
+          const dataToSave = {
+            members: this.members,
+            eventDate: this.eventDate,
+            eventVenue: this.eventVenue
+          };
+
+          const content = btoa(JSON.stringify(dataToSave, null, 2));
 
           const body = {
             message: 'Update IBZA Family Day Data',
