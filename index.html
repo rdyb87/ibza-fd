@@ -48,7 +48,7 @@
         <h2 class="font-bold mb-3">🔒 Admin Login</h2>
         <input type="password" x-model="passwordInput" placeholder="Enter Admin Password"
           class="border-2 border-black p-2 w-full mb-3">
-        <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token"
+        <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token (required first time)"
           class="border-2 border-black p-2 w-full mb-3">
         <button @click="login()" class="neo-btn px-4 py-2 w-full">Login</button>
         <p class="text-red-600 mt-2 text-sm" x-text="loginError"></p>
@@ -134,7 +134,7 @@
       </div>
     </div>
 
-    <div class="text-center mt-6 text-sm">Develop by RdybMiharbi</div>
+    <div class="text-center mt-6 text-sm">Develop by Maream Imani</div>
   </div>
 
   <script>
@@ -174,18 +174,22 @@
         // ===== LOGIN =====
         login() {
           if (this.passwordInput === this.adminPassword) {
-            // Token is required for admin login
-            if (!this.tokenInput.trim()) {
-              this.loginError = 'GitHub token is required';
+            // Check if token provided or already saved
+            if (this.tokenInput.trim()) {
+              // New token provided - save it
+              this.githubToken = this.tokenInput.trim();
+              localStorage.setItem('ibza_token', this.tokenInput.trim());
+            } else if (this.githubToken) {
+              // Token already loaded from localStorage - use it
+              console.log('Using saved token from localStorage');
+            } else {
+              // No token provided and none saved
+              this.loginError = 'GitHub token is required (first time only)';
               return;
             }
 
             this.isAdmin = true;
             sessionStorage.setItem('ibza_admin', 'true');
-
-            // Save token to localStorage
-            this.githubToken = this.tokenInput.trim();
-            localStorage.setItem('ibza_token', this.tokenInput.trim());
 
             this.showLogin = false;
             this.loginError = '';
