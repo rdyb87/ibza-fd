@@ -32,7 +32,7 @@
     }
 
     .progress-bar {
-      height: 24px;
+      height: 28px;
       background: #e5e7eb;
       border: 2px solid black;
       border-radius: 4px;
@@ -52,9 +52,22 @@
       left: 50%;
       transform: translate(-50%, -50%);
       font-weight: bold;
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       color: black;
       text-shadow: 0 0 3px white;
+      white-space: nowrap;
+      width: 100%;
+      text-align: center;
+      padding: 0 4px;
+    }
+
+    @media (min-width: 640px) {
+      .progress-bar {
+        height: 32px;
+      }
+      .progress-text {
+        font-size: 0.75rem;
+      }
     }
 
     .editable-field {
@@ -166,7 +179,10 @@
       <h2 class="font-bold mb-2">🎯 Target Goal</h2>
       <div class="progress-bar">
         <div class="progress-fill" :style="`width: ${getProgressPercentage()}%`"></div>
-        <div class="progress-text" x-text="`${totalPaid()} collected / ${getTargetAmount()} Target (${getProgressPercentage()}%)`"></div>
+        <div class="progress-text">
+          <span class="hidden sm:inline" x-text="`${totalPaid()} collected / ${getTargetAmount()} Target (${getProgressPercentage()}%)`"></span>
+          <span class="sm:hidden" x-text="`${totalPaid()} / ${getTargetAmount()} (${getProgressPercentage()}%)`"></span>
+        </div>
       </div>
     </div>
 
