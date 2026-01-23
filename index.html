@@ -48,7 +48,7 @@
         <h2 class="font-bold mb-3">🔒 Admin Login</h2>
         <input type="password" x-model="passwordInput" placeholder="Enter Admin Password"
           class="border-2 border-black p-2 w-full mb-3">
-        <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token (optional)"
+        <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token"
           class="border-2 border-black p-2 w-full mb-3">
         <button @click="login()" class="neo-btn px-4 py-2 w-full">Login</button>
         <p class="text-red-600 mt-2 text-sm" x-text="loginError"></p>
@@ -58,7 +58,7 @@
 
     <!-- PUBLIC / ADMIN BAR -->
     <div class="neo p-3 mb-4 text-center text-sm">
-      Public View Enabled — Only Admin Can Edit or Save
+      
       <template x-if="!isAdmin">
         <button @click="showLogin=true" class="neo-btn px-3 py-1 ml-2">Admin Login</button>
       </template>
@@ -145,8 +145,6 @@
         githubUser: 'rdyb87',
         githubRepo: 'ibza-fd',
         githubFile: 'data.json',
-        // Shared token (base64 encoded) - works on all devices
-        sharedTokenEncoded: 'Z2hwX2hUVkZmblR2NTYyMUw3Vlc2OEtoeVhpeExnMmFzdjNYMnNqeQ==',
 
         // ===== STATE =====
         isAdmin: false,
@@ -162,20 +160,9 @@
 
         // ===== INIT =====
         init() {
-          // Priority 1: Load shared token from config (works across all devices)
-          if (this.sharedTokenEncoded) {
-            try {
-              this.githubToken = atob(this.sharedTokenEncoded);
-            } catch (e) {
-              console.error('Failed to decode shared token');
-            }
-          }
-
-          // Priority 2: Fallback to localStorage (device-specific)
-          if (!this.githubToken) {
-            const savedToken = localStorage.getItem('ibza_token');
-            if (savedToken) this.githubToken = savedToken.trim();
-          }
+          // Load token from localStorage (device-specific)
+          const savedToken = localStorage.getItem('ibza_token');
+          if (savedToken) this.githubToken = savedToken.trim();
 
           // Check session admin status
           const session = sessionStorage.getItem('ibza_admin');
@@ -187,15 +174,18 @@
         // ===== LOGIN =====
         login() {
           if (this.passwordInput === this.adminPassword) {
+            // Token is required for admin login
+            if (!this.tokenInput.trim()) {
+              this.loginError = 'GitHub token is required';
+              return;
+            }
+
             this.isAdmin = true;
             sessionStorage.setItem('ibza_admin', 'true');
 
-            // Save token to localStorage if provided (optional, will override sharedToken)
-            if (this.tokenInput.trim()) {
-              this.githubToken = this.tokenInput.trim();
-              localStorage.setItem('ibza_token', this.tokenInput.trim());
-              console.log('Token saved to localStorage');
-            }
+            // Save token to localStorage
+            this.githubToken = this.tokenInput.trim();
+            localStorage.setItem('ibza_token', this.tokenInput.trim());
 
             this.showLogin = false;
             this.loginError = '';
