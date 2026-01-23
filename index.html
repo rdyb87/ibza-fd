@@ -130,16 +130,13 @@
     </div>
 
     <!-- PUBLIC / ADMIN BAR -->
-    <div class="neo p-3 mb-4 flex justify-between items-center">
-      <button @click="loadFromCloud()" class="neo-btn px-3 py-1 bg-blue-300">🔄 Refresh Data</button>
-      <div>
-        <template x-if="!isAdmin">
-          <button @click="showLogin=true" class="neo-btn px-3 py-1">Admin Login</button>
-        </template>
-        <template x-if="isAdmin">
-          <button @click="logout()" class="neo-btn px-3 py-1 bg-red-300">Logout Admin</button>
-        </template>
-      </div>
+    <div class="neo p-3 mb-4 text-center text-sm">
+      <template x-if="!isAdmin">
+        <button @click="showLogin=true" class="neo-btn px-3 py-1 ml-2">Admin Login</button>
+      </template>
+      <template x-if="isAdmin">
+        <button @click="logout()" class="neo-btn px-3 py-1 ml-2 bg-red-300">Logout Admin</button>
+      </template>
     </div>
 
     <!-- EVENT DETAILS & SUMMARY -->
@@ -385,16 +382,12 @@
           // Use GitHub API if we have a token (gets latest data, no cache)
           // Otherwise fall back to raw URL for public viewing
           if (this.githubToken) {
-            const apiUrl = `https://api.github.com/repos/${this.githubUser}/${this.githubRepo}/contents/${this.githubFile}?t=${timestamp}`;
+            const apiUrl = `https://api.github.com/repos/${this.githubUser}/${this.githubRepo}/contents/${this.githubFile}?cachebust=${timestamp}`;
             try {
               const res = await fetch(apiUrl, {
                 headers: {
-                  'Authorization': `token ${this.githubToken}`,
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Pragma': 'no-cache',
-                  'Expires': '0'
-                },
-                cache: 'no-store'
+                  'Authorization': `token ${this.githubToken}`
+                }
               });
               if (res.ok) {
                 const fileData = await res.json();
@@ -419,18 +412,10 @@
               alert('Failed to load from cloud: ' + e.message);
             }
           } else {
-            // No token - use raw URL with aggressive cache busting
-            const rawUrl = `https://raw.githubusercontent.com/${this.githubUser}/${this.githubRepo}/main/${this.githubFile}?nocache=${timestamp}`;
+            // No token - use raw URL with cache busting via query parameter
+            const rawUrl = `https://raw.githubusercontent.com/${this.githubUser}/${this.githubRepo}/main/${this.githubFile}?cachebust=${timestamp}`;
             try {
-              const res = await fetch(rawUrl, {
-                method: 'GET',
-                cache: 'no-store',
-                headers: {
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Pragma': 'no-cache',
-                  'Expires': '0'
-                }
-              });
+              const res = await fetch(rawUrl);
               if (res.ok) {
                 const data = await res.json();
                 this.members = data.members || [];
