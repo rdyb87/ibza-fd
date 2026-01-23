@@ -58,7 +58,7 @@
 
     <!-- PUBLIC / ADMIN BAR -->
     <div class="neo p-3 mb-4 text-center text-sm">
-      
+      Public View Enabled — Only Admin Can Edit or Save
       <template x-if="!isAdmin">
         <button @click="showLogin=true" class="neo-btn px-3 py-1 ml-2">Admin Login</button>
       </template>
@@ -141,12 +141,12 @@
     function app() {
       return {
         // ===== CONFIG =====
-        adminPassword: 'ibza2026',
+        adminPassword: 'admin',
         githubUser: 'rdyb87',
         githubRepo: 'ibza-fd',
         githubFile: 'data.json',
         // Shared token (base64 encoded) - works on all devices
-        sharedTokenEncoded: 'Z2hwX3d3cTd0Tm82ajRFd3hmaVBaaFVWNVBqNDlFbzVwczFQQW00Qw==',
+        sharedTokenEncoded: 'Z2hwX2hUVkZmblR2NTYyMUw3Vlc2OEtoeVhpeExnMmFzdjNYMnNqeQ==',
 
         // ===== STATE =====
         isAdmin: false,
@@ -253,7 +253,7 @@
             try {
               const res = await fetch(apiUrl, {
                 headers: {
-                  'Authorization': `Bearer ${this.githubToken}`
+                  'Authorization': `token ${this.githubToken}`
                 }
               });
               if (res.ok) {
@@ -300,7 +300,7 @@
           try {
             const getRes = await fetch(apiUrl, {
               headers: {
-                'Authorization': `Bearer ${this.githubToken}`
+                'Authorization': `token ${this.githubToken}`
               }
             });
             if (getRes.ok) {
@@ -323,7 +323,7 @@
             const res = await fetch(apiUrl, {
               method: 'PUT',
               headers: {
-                'Authorization': `Bearer ${this.githubToken}`,
+                'Authorization': `token ${this.githubToken}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify(body)
