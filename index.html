@@ -48,7 +48,7 @@
         <h2 class="font-bold mb-3">🔒 Admin Login</h2>
         <input type="password" x-model="passwordInput" placeholder="Enter Admin Password"
           class="border-2 border-black p-2 w-full mb-3">
-        <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token"
+        <input type="password" x-model="tokenInput" placeholder="Enter GitHub Token (optional)"
           class="border-2 border-black p-2 w-full mb-3">
         <button @click="login()" class="neo-btn px-4 py-2 w-full">Login</button>
         <p class="text-red-600 mt-2 text-sm" x-text="loginError"></p>
@@ -145,9 +145,8 @@
         githubUser: 'rdyb87',
         githubRepo: 'ibza-fd',
         githubFile: 'data.json',
-        // Shared token (base64 encoded) - accessible from all devices
-        // To update: login with new token, it will be saved here
-        sharedTokenEncoded: 'Z2hwX2ZiMU5FVWZtaFFHMWtVOTgyd2hRSlhjaW40Q2ZmVzNWanR0bQ==', // Leave empty initially, will be set on first token entry
+        // Shared token (base64 encoded) - works on all devices
+        sharedTokenEncoded: 'Z2hwX2FyQ2dvNG9tcWtoTk16dk92UDRhRGNyTk0yYlJwZzM5WWt3cg==',
 
         // ===== STATE =====
         isAdmin: false,
@@ -166,7 +165,7 @@
           // Priority 1: Load shared token from config (works across all devices)
           if (this.sharedTokenEncoded) {
             try {
-              this.githubToken = atob(this.sharedTokenEncoded).trim();
+              this.githubToken = atob(this.sharedTokenEncoded);
             } catch (e) {
               console.error('Failed to decode shared token');
             }
@@ -191,14 +190,11 @@
             this.isAdmin = true;
             sessionStorage.setItem('ibza_admin', 'true');
 
-            // Save token to localStorage if provided (shared across all admin sessions)
+            // Save token to localStorage if provided (optional, will override sharedToken)
             if (this.tokenInput.trim()) {
               this.githubToken = this.tokenInput.trim();
               localStorage.setItem('ibza_token', this.tokenInput.trim());
-            } else {
-              // Load existing token from localStorage if no new token provided
-              const savedToken = localStorage.getItem('ibza_token');
-              if (savedToken) this.githubToken = savedToken.trim();
+              console.log('Token saved to localStorage');
             }
 
             this.showLogin = false;
@@ -337,11 +333,13 @@
             } else {
               const errorData = await res.json();
               console.error('GitHub API Error:', errorData);
-              alert('Failed to save to cloud. Check token & repo settings.');
+              console.error('Status:', res.status);
+              console.error('Token (first 10 chars):', this.githubToken.substring(0, 10));
+              alert(`Failed to save to cloud.\nStatus: ${res.status}\nError: ${errorData.message || 'Unknown'}\nCheck console for details.`);
             }
           } catch (e) {
             console.error('Save error:', e);
-            alert('Error saving to cloud.');
+            alert('Error saving to cloud: ' + e.message);
           }
         }
       }
