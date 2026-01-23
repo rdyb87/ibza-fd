@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Test Member",
+    "payments": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  }
+]
