@@ -396,7 +396,7 @@
         },
 
         getMemberTotal(member) {
-          const monthlyTotal = member.payments.filter(p => p).length * 36;
+          const monthlyTotal = member.payments.filter(p => p).length * 30;
           const extraAmount = parseFloat(member.extra) || 0;
           return 'RM' + (monthlyTotal + extraAmount).toFixed(2);
         },
@@ -405,7 +405,7 @@
         totalPaid() {
           let total = 0;
           this.members.forEach(m => {
-            total += m.payments.filter(p => p).length * 36;
+            total += m.payments.filter(p => p).length * 30;
             total += parseFloat(m.extra) || 0;
           });
           return 'RM' + total.toFixed(2);
@@ -415,13 +415,13 @@
           const month = new Date().getMonth();
           let total = 0;
           this.members.forEach(m => { if (m.payments[month]) total++; });
-          return 'RM' + (total * 36);
+          return 'RM' + (total * 30);
         },
 
         // ===== TARGET GOAL FUNCTIONS =====
         getTargetAmount() {
-          // Target is total members × 12 months × RM36
-          return 'RM' + (this.members.length * 12 * 36);
+          // Target is total members × 12 months × RM30
+          return 'RM' + (this.members.length * 12 * 30);
         },
 
         getProgressPercentage() {
