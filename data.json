@@ -165,7 +165,7 @@
     {
       "name": "Ayoh Su",
       "payments": [
-        true,
+        false,
         false,
         false,
         false,
@@ -178,7 +178,7 @@
         false,
         false
       ],
-      "extra": 50
+      "extra": 0
     },
     {
       "name": "Kakak Iffah",
