@@ -312,12 +312,13 @@
         githubUser: 'rdyb87',
         githubRepo: 'ibza-fd',
         githubFile: 'data.json',
+        refreshInterval: 15000, // 15 seconds
 
         // ===== STATE =====
         isAdmin: false,
         showLogin: false,
         showEventEdit: false,
-		showPayment: false,
+        showPayment: false,
         passwordInput: '',
         tokenInput: '',
         loginError: '',
@@ -332,6 +333,9 @@
         months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         members: [],
         newMember: '',
+        
+        // Data Integrity
+        lastLoadedData: null, // To check for unsaved changes
 
         // ===== INIT =====
         init() {
@@ -344,6 +348,15 @@
           if (session === 'true') this.isAdmin = true;
 
           this.loadFromCloud(); // auto-load on page open
+          
+          // Auto-refresh interval
+          setInterval(() => {
+            if (!this.hasUnsavedChanges()) {
+               this.loadFromCloud(true); // true = silent mode
+            } else {
+              console.log('Skipping auto-refresh due to unsaved changes');
+            }
+          }, this.refreshInterval);
         },
 
         // ===== LOGIN =====
@@ -416,7 +429,9 @@
           }
         },
 
-        saveLocal() { },
+        saveLocal() { 
+          // Just triggers reactivity, real save is manual or implicitly checked
+        },
 
         // ===== EXTRA DONATION =====
         updateExtra(index, value) {
@@ -427,7 +442,10 @@
           // Only save if value actually changed
           if (numValue !== currentValue) {
             this.members[index].extra = numValue;
-            this.saveToCloud();
+            this.saveToCloud(); // Auto save for direct edits? Or just local? 
+            // Original code called saveToCloud immediately for extra. 
+            // Let's keep it consistent but it might conflict with "unsaved changes" logic if not careful.
+            // Actually, original code called saveToCloud on Enter/Blur for extra.
           }
         },
 
@@ -467,72 +485,91 @@
           return Math.min(Math.round((totalPayments / targetPayments) * 100), 100);
         },
 
+        // ===== HELPER: CHECKSUM/DIRTY CHECK =====
+        hasUnsavedChanges() {
+           if (!this.lastLoadedData) return false;
+           
+           const currentData = {
+              members: this.members,
+              eventDate: this.eventDate,
+              eventVenue: this.eventVenue
+           };
+           
+           return JSON.stringify(currentData) !== JSON.stringify(this.lastLoadedData);
+        },
+
         // ===== LOAD FROM GITHUB =====
-        async loadFromCloud() {
+        async loadFromCloud(silent = false) {
           const timestamp = new Date().getTime();
+          const apiUrl = `https://api.github.com/repos/${this.githubUser}/${this.githubRepo}/contents/${this.githubFile}?cachebust=${timestamp}`;
           
-          // Use GitHub API if we have a token (gets latest data, no cache)
-          // Otherwise fall back to raw URL for public viewing
-          if (this.githubToken) {
-            const apiUrl = `https://api.github.com/repos/${this.githubUser}/${this.githubRepo}/contents/${this.githubFile}?cachebust=${timestamp}`;
-            try {
-              const res = await fetch(apiUrl, {
-                headers: {
-                  'Authorization': `token ${this.githubToken}`
-                }
-              });
-              if (res.ok) {
+          let fetchedContent = null;
+          let methodUsed = '';
+
+          try {
+             // STRATEGY 1: Try GitHub API (Token if available, Public API if not)
+             const headers = {};
+             if (this.githubToken) {
+                headers['Authorization'] = `token ${this.githubToken}`;
+                methodUsed = 'API (Authenticated)';
+             } else {
+                methodUsed = 'API (Public)';
+             }
+
+             const res = await fetch(apiUrl, { headers });
+             
+             if (res.ok) {
                 const fileData = await res.json();
-                // Decode base64 content
-                const content = atob(fileData.content);
-                const data = JSON.parse(content);
+                fetchedContent = atob(fileData.content);
+             } else if (res.status === 403 || res.status === 404) {
+                // Rate limit exceeded or not found (maybe private repo but no token?)
+                // Fallback to RAW
+                throw new Error('API failed, falling back');
+             } else {
+                 throw new Error(`API Error ${res.status}`);
+             }
+
+          } catch (e) {
+             // STRATEGY 2: Fallback to Raw Content
+             console.log(`Fallback to raw due to: ${e.message}`);
+             methodUsed = 'Raw Content';
+             const rawUrl = `https://raw.githubusercontent.com/${this.githubUser}/${this.githubRepo}/main/${this.githubFile}?cachebust=${timestamp}`;
+             
+             try {
+                const res = await fetch(rawUrl);
+                if (res.ok) {
+                   fetchedContent = await res.text();
+                }
+             } catch (rawErr) {
+                console.error('Failed to load raw content:', rawErr);
+                if (!silent) alert('Failed to load data. Please check internet connection.');
+                return;
+             }
+          }
+
+          if (fetchedContent) {
+             try {
+                const data = JSON.parse(fetchedContent);
                 
-                // Load members and event details
+                // Update State
                 this.members = data.members || [];
-                // Ensure all members have extra field
                 this.members.forEach(m => {
                   if (m.extra === undefined) m.extra = 0;
                 });
                 this.eventDate = data.eventDate || '';
                 this.eventVenue = data.eventVenue || '';
-                
-                console.log('✅ Loaded from cloud (API):', this.members.length, 'members at', new Date().toLocaleTimeString());
-              } else {
-                this.members = [];
-                this.eventDate = '';
-                this.eventVenue = '';
-                console.log('⚠️ No data file found');
-              }
-            } catch (e) {
-              console.error('❌ Failed to load from cloud:', e);
-              alert('Failed to load from cloud: ' + e.message);
-            }
-          } else {
-            // No token - use raw URL with cache busting via query parameter
-            const rawUrl = `https://raw.githubusercontent.com/${this.githubUser}/${this.githubRepo}/main/${this.githubFile}?cachebust=${timestamp}`;
-            try {
-              const res = await fetch(rawUrl);
-              if (res.ok) {
-                const data = await res.json();
-                this.members = data.members || [];
-                // Ensure all members have extra field
-                this.members.forEach(m => {
-                  if (m.extra === undefined) m.extra = 0;
-                });
-                this.eventDate = data.eventDate || '';
-                this.eventVenue = data.eventVenue || '';
-                
-                console.log('✅ Loaded from cloud (Public):', this.members.length, 'members at', new Date().toLocaleTimeString());
-              } else {
-                this.members = [];
-                this.eventDate = '';
-                this.eventVenue = '';
-                console.log('⚠️ No data file found');
-              }
-            } catch (e) {
-              console.error('❌ Failed to load from cloud:', e);
-              alert('Failed to load from cloud: ' + e.message);
-            }
+
+                // Update "Last Clean State"
+                this.lastLoadedData = {
+                   members: JSON.parse(JSON.stringify(this.members)),
+                   eventDate: this.eventDate,
+                   eventVenue: this.eventVenue
+                };
+
+                console.log(`✅ Loaded via ${methodUsed}: ${this.members.length} members at ${new Date().toLocaleTimeString()}`);
+             } catch (parseErr) {
+                console.error('JSON Parse error:', parseErr);
+             }
           }
         },
 
@@ -587,13 +624,13 @@
               body: JSON.stringify(body)
             });
             if (res.ok) {
+              // Update lastLoadedData to match current state on successful save
+              this.lastLoadedData = JSON.parse(JSON.stringify(dataToSave));
               alert('Cloud data saved successfully!');
             } else {
               const errorData = await res.json();
               console.error('GitHub API Error:', errorData);
-              console.error('Status:', res.status);
-              console.error('Token (first 10 chars):', this.githubToken.substring(0, 10));
-              alert(`Failed to save to cloud.\nStatus: ${res.status}\nError: ${errorData.message || 'Unknown'}\nCheck console for details.`);
+              alert(`Failed to save to cloud.\nStatus: ${res.status}\nError: ${errorData.message || 'Unknown'}`);
             }
           } catch (e) {
             console.error('Save error:', e);
