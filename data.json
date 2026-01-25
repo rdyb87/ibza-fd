@@ -155,7 +155,7 @@
         false,
         false,
         false,
-        false,
+        true,
         false,
         false,
         false
@@ -165,7 +165,7 @@
     {
       "name": "Ayoh Su",
       "payments": [
-        false,
+        true,
         false,
         false,
         false,
