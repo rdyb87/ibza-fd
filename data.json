@@ -94,7 +94,7 @@
       "name": "Cik Nun",
       "payments": [
         true,
-        false,
+        true,
         false,
         false,
         false,
